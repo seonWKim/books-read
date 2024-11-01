@@ -296,4 +296,32 @@ Hotspot divides an object into 3 parts
       it exclusively references, were garbage collected
 - Overflow in direct memory is not recorded to heap dump
 
+## Chapter 3. Garbage Collector and Memory Allocation Strategies 
+
+### What is dead object? 
+- Reference counting? No, it's not used in Java 
+  - What happen when object A and object B references each other?(circular reference) => can't remove both objects
+  - Instead, Java uses "reachability analysis" algorithm 
+- Reachability Analysis Algorithm 
+  - Everything starts from GC root objects 
+  - If objects can not be reached from GC root(reference chain doesn't exist), the objects can be considered dead 
+- GC roots in Java 
+  - Objects referenced by JVM stack e.g. arguments, local variables etc 
+  - Statically referenced objects by classes in method read 
+  - ... 
+- Types of references in Java 
+  - Strong reference: never garbage collected 
+  - Soft reference: if memory overflow might occur, the gc collects soft referenced objects  
+  - Weak reference: removed on next gc 
+  - Phantom reference: weakest reference 
+- Objects which has to run `finalize()` method will be added to the `F-Queue` 
+  - JVM will start a thread to run `finalize()` method on the objects in `F-Queue` asynchronously 
+  - `finalize()` will only be called once for each object 
+  - it's recommended to not use the `finalize()` method 
+- Garbage collection in method area 
+  - it's not mandatory, and not very cost-effective
+  - gc targets: unused constants and classes 
+
+### Garbage Collection Algorithm 
+
 
