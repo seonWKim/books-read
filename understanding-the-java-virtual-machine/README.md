@@ -264,9 +264,18 @@ Hotspot divides an object into 3 parts
 - -Xms, -Xmx  
   - controls the min/max size of the heap 
 - -Xss 
-  - max stack size 
+  - max stack size
+- -XX:PermSize, -XX:MaxPermSize
+  - controls the size of the permgen  
+  - HotSpot removed the permgen from JDK 8. Replaced it with metaspace 
+- -XX:MaxMetaspaceSize
+  - controls the max size of metaspace
+  - defaults to -1, which means it's unlimited 
 
 <b>Memory Analysis</b>
 - Shallow heap vs Retained Heap
   - shallow heap: the amount of memory taken up by just that object, without considering any objects it references 
   - retained heap: the total amount of memory that would be freed if the object itself, along with all objects it exclusively references, were garbage collected 
+- Overflow in direct memory is not recorded to heap dump
+
+
