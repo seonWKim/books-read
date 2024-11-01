@@ -5,6 +5,10 @@
     - [History of JVM](#history-of-jvm)
     - [Future of Java](#future-of-java)
 - [Chapter 2. Automatic Memory Management](#chapter-2-automatic-memory-management)
+  - [Runtime Data Areas](#runtime-data-areas)
+  - [Runtime Data Areas Explanation](#runtime-data-areas-explanation)
+  - [How HotSpot VM stores Objects in memory](#how-hotspot-vm-stores-objects-in-memory)
+  - [Real world examples](#real-world-examples)
 
 ## Chapter 1. Being familiar with Java
 
@@ -151,131 +155,145 @@ What is JDK
 
 ## Chapter 2. Automatic Memory Management
 
-### Runtime Data Areas 
+### Runtime Data Areas
+
 - Shared by all threads
-  - Heap 
-  - Method area
-    - Runtime constant pool 
-- Private per thread 
-  - Native or VM Stack
-  - PC registers
+    - Heap
+    - Method area
+        - Runtime constant pool
+- Private per thread
+    - Native or VM Stack
+    - PC registers
 
-### Explanation 
-- PC registers 
-  - stored in thread private memory 
-  - points to the bytecode line number of specific thread 
-  - we need PC registers in order to resume the execution of that specific thread 
-  - when running native methods, the PC register's value is Undefined 
-- VM stack 
-  - whenever java method is called, JVM creates a stack frame and push it to the VM stack(pops the stack frame when method finishes) 
-  - stack frame stores 
-    - local variable table 
-      - stores primitive data types, object reference, return address into local variable slot  
-      - local variable slot is "normally" 32 bit 
-      - number of local variable slot if determined at compile time 
-    - operand stack 
-    - dynamic link 
-    - method return value 
-  - 2 types of errors related to VM stack
-    - StackOverflowError: when the depth of the stack increase above the JVM's specified limit  
-    - OutOfMemoryError: when there is not much memory for the increasing stack
-- Native stack 
-  - whenever native method is called 
-- Heap 
-  - "Almost" every objects are stored in the heap 
-    - maybe the day might come when java objects are not stored in the heap
-  - Not every GC divides heap into young, old, permanent and etc 
-    - JVM spec doesn't define how to divide the heap. It depends on the JVM implementation 
-  - TLAB(Thread Local Allocated Buffer)  
-    - In order to improve the throughput of object allocation, heap is divided into multiple thread local allocated buffers 
-- Method area 
-  - used to store type information, constants, static variables and code cache(compiled by JIT)
-  - some people call this non-heap(but JVM spec regards method area as part of the heap) 
-  - method area and permanent generation space 
-    - HotSpot VM: included the method area into permanent generation space(until JDK 7)
-      - from JDK 8, HotSpot VM removed the concept of permanent generation space. Instead, it implemented metaspace in native memory 
-    - BEA JRockit, IBM J9: no concept of permanent generation space
-  - runtime constant pool
-    - included in the method area 
-    - stores class version, field, method, interface + literal, symbols 
-      - when VM loads classes, it stores above information into the runtime constant pool
-    - constants can be added to runtime constant pool during "runtime" e.g. String's `intern()` method 
-- Direct memory 
-  - `DirectByteBuffer`
-    - used in NIO 
-    - allocate memory on non-heap
-    - no need to copy data back and forth between java heap and native heap 
-  - you should consider `direct memory + heap memory < physical memory` 
+### Runtime Data Areas Explanation
 
-### How HotSpot VM stores Objects in memory 
+- PC registers
+    - stored in thread private memory
+    - points to the bytecode line number of specific thread
+    - we need PC registers in order to resume the execution of that specific thread
+    - when running native methods, the PC register's value is Undefined
+- VM stack
+    - whenever java method is called, JVM creates a stack frame and push it to the VM stack(pops the stack frame
+      when method finishes)
+    - stack frame stores
+        - local variable table
+            - stores primitive data types, object reference, return address into local variable slot
+            - local variable slot is "normally" 32 bit
+            - number of local variable slot if determined at compile time
+        - operand stack
+        - dynamic link
+        - method return value
+    - 2 types of errors related to VM stack
+        - StackOverflowError: when the depth of the stack increase above the JVM's specified limit
+        - OutOfMemoryError: when there is not much memory for the increasing stack
+- Native stack
+    - whenever native method is called
+- Heap
+    - "Almost" every objects are stored in the heap
+        - maybe the day might come when java objects are not stored in the heap
+    - Not every GC divides heap into young, old, permanent and etc
+        - JVM spec doesn't define how to divide the heap. It depends on the JVM implementation
+    - TLAB(Thread Local Allocated Buffer)
+        - In order to improve the throughput of object allocation, heap is divided into multiple thread local
+          allocated buffers
+- Method area
+    - used to store type information, constants, static variables and code cache(compiled by JIT)
+    - some people call this non-heap(but JVM spec regards method area as part of the heap)
+    - method area and permanent generation space
+        - HotSpot VM: included the method area into permanent generation space(until JDK 7)
+            - from JDK 8, HotSpot VM removed the concept of permanent generation space. Instead, it implemented
+              metaspace in native memory
+        - BEA JRockit, IBM J9: no concept of permanent generation space
+    - runtime constant pool
+        - included in the method area
+        - stores class version, field, method, interface + literal, symbols
+            - when VM loads classes, it stores above information into the runtime constant pool
+        - constants can be added to runtime constant pool during "runtime" e.g. String's `intern()` method
+- Direct memory
+    - `DirectByteBuffer`
+        - used in NIO
+        - allocate memory on non-heap
+        - no need to copy data back and forth between java heap and native heap
+    - you should consider `direct memory + heap memory < physical memory`
+
+### How HotSpot VM stores Objects in memory
 
 <b>Object creation</b>
 
 - What happen when we use `new` keyword to create a new object?
-- Java compiler will convert `new` keyword into 2 byte codes which is `new` and `invokespecial` 
+- Java compiler will convert `new` keyword into 2 byte codes which is `new` and `invokespecial`
 - Bytecode `new`
-  1. Checks whether the parameter passed to the new keyword(the name of the class) is a symbolic reference to a class inside the constant pool 
-  2. Checks whether that class is loaded, resolved and initialized 
-  3. Allocate memory for the object
-     - JVM make use of free list, which manages the free memory blocks
-     - JVM make use of TLAB to reduce the contention of allocating memory between threads. When the buffer is full, it requests to increases the size of the buffer
-     - When memory allocation is done, all the allocated space is initialized with 0. 
-       - thanks to this property, we can use object's field without initializing, cause the fields are initialized with 0 
-  4. Fill object header
-     - Class information of the object 
-     - How to find meta information of the class 
-     - hashcode(calculated when `Object::hashCode()` is first called)
-     - GC age 
-  5. Object cre
+    1. Checks whether the parameter passed to the new keyword(the name of the class) is a symbolic reference to
+       a class inside the constant pool
+    2. Checks whether that class is loaded, resolved and initialized
+    3. Allocate memory for the object
+        - JVM make use of free list, which manages the free memory blocks
+        - JVM make use of TLAB to reduce the contention of allocating memory between threads. When the buffer is
+          full, it requests to increases the size of the buffer
+        - When memory allocation is done, all the allocated space is initialized with 0.
+            - thanks to this property, we can use object's field without initializing, cause the fields are
+              initialized with 0
+    4. Fill object header
+        - Class information of the object
+        - How to find meta information of the class
+        - hashcode(calculated when `Object::hashCode()` is first called)
+        - GC age
+    5. Object cre
 - Bytecode `invokespecial`
-  1. `<init>()` method is called -> the constructor method is executed
+    1. `<init>()` method is called -> the constructor method is executed
 
-<b>Object memory layout</b> 
+<b>Object memory layout</b>
 
-Hotspot divides an object into 3 parts 
-1. Object header 
-   - Mark word
-     - stores runtime data of the object 
-     - hashcode, GC age, lock state flag etc 
-   - Class word 
-     - stores a pointer which points to the metadata of the class(which resides in the metaspace) 
-     - by using it, we can know the information of the class of an object during runtime 
-   - Length of array(if the object is an array)
-     - JVM retrieves the size of an object from object header 
-     - Object header only stores the type information of an object(even though it's an array)
-       - that's why we need length information in order to calculate the size of an array 
-2. Instance data 
-   - stores field information, parent class information etc  
-3. Alignment padding 
-   - HotSpot requires every object's memory to start from 8x bytes memory address. 
-   - If the object's size is not a multiple of 8, then alignment padding is used
+Hotspot divides an object into 3 parts
+
+1. Object header
+    - Mark word
+        - stores runtime data of the object
+        - hashcode, GC age, lock state flag etc
+    - Class word
+        - stores a pointer which points to the metadata of the class(which resides in the metaspace)
+        - by using it, we can know the information of the class of an object during runtime
+    - Length of array(if the object is an array)
+        - JVM retrieves the size of an object from object header
+        - Object header only stores the type information of an object(even though it's an array)
+            - that's why we need length information in order to calculate the size of an array
+2. Instance data
+    - stores field information, parent class information etc
+3. Alignment padding
+    - HotSpot requires every object's memory to start from 8x bytes memory address.
+    - If the object's size is not a multiple of 8, then alignment padding is used
 
 <b>How to access objects in heap</b>
-- Using a handle  
-  - reference pointer(stack) -> handle(heap) -> instance data, type data(heap) 
-  - object's frequently move their position in the heap, but if we use the handle, the address of handle is very stable 
+
+- Using a handle
+    - reference pointer(stack) -> handle(heap) -> instance data, type data(heap)
+    - object's frequently move their position in the heap, but if we use the handle, the address of handle is
+      very stable
 - Direct pointer
-  - reference pointer(stack) -> instance data, type data(heap)
-  - fast(no indirection)
-  - HotSpot VM uses this method 
+    - reference pointer(stack) -> instance data, type data(heap)
+    - fast(no indirection)
+    - HotSpot VM uses this method
 
-### Real world  
+### Real World Examples
 
-- -Xms, -Xmx  
-  - controls the min/max size of the heap 
-- -Xss 
-  - max stack size
+- -Xms, -Xmx
+    - controls the min/max size of the heap
+- -Xss
+    - max stack size
 - -XX:PermSize, -XX:MaxPermSize
-  - controls the size of the permgen  
-  - HotSpot removed the permgen from JDK 8. Replaced it with metaspace 
+    - controls the size of the permgen
+    - HotSpot removed the permgen from JDK 8. Replaced it with metaspace
 - -XX:MaxMetaspaceSize
-  - controls the max size of metaspace
-  - defaults to -1, which means it's unlimited 
+    - controls the max size of metaspace
+    - defaults to -1, which means it's unlimited
 
 <b>Memory Analysis</b>
+
 - Shallow heap vs Retained Heap
-  - shallow heap: the amount of memory taken up by just that object, without considering any objects it references 
-  - retained heap: the total amount of memory that would be freed if the object itself, along with all objects it exclusively references, were garbage collected 
+    - shallow heap: the amount of memory taken up by just that object, without considering any objects it
+      references
+    - retained heap: the total amount of memory that would be freed if the object itself, along with all objects
+      it exclusively references, were garbage collected
 - Overflow in direct memory is not recorded to heap dump
 
 
