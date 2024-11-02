@@ -5,10 +5,10 @@
     - [History of JVM](#history-of-jvm)
     - [Future of Java](#future-of-java)
 - [Chapter 2. Automatic Memory Management](#chapter-2-automatic-memory-management)
-  - [Runtime Data Areas](#runtime-data-areas)
-  - [Runtime Data Areas Explanation](#runtime-data-areas-explanation)
-  - [How HotSpot VM stores Objects in memory](#how-hotspot-vm-stores-objects-in-memory)
-  - [Real world examples](#real-world-examples)
+    - [Runtime Data Areas](#runtime-data-areas)
+    - [Runtime Data Areas Explanation](#runtime-data-areas-explanation)
+    - [How HotSpot VM stores Objects in memory](#how-hotspot-vm-stores-objects-in-memory)
+    - [Real world examples](#real-world-examples)
 
 ## Chapter 1. Being familiar with Java
 
@@ -296,32 +296,132 @@ Hotspot divides an object into 3 parts
       it exclusively references, were garbage collected
 - Overflow in direct memory is not recorded to heap dump
 
-## Chapter 3. Garbage Collector and Memory Allocation Strategies 
+## Chapter 3. Garbage Collector and Memory Allocation Strategies
 
-### What is dead object? 
-- Reference counting? No, it's not used in Java 
-  - What happen when object A and object B references each other?(circular reference) => can't remove both objects
-  - Instead, Java uses "reachability analysis" algorithm 
-- Reachability Analysis Algorithm 
-  - Everything starts from GC root objects 
-  - If objects can not be reached from GC root(reference chain doesn't exist), the objects can be considered dead 
-- GC roots in Java 
-  - Objects referenced by JVM stack e.g. arguments, local variables etc 
-  - Statically referenced objects by classes in method read 
-  - ... 
-- Types of references in Java 
-  - Strong reference: never garbage collected 
-  - Soft reference: if memory overflow might occur, the gc collects soft referenced objects  
-  - Weak reference: removed on next gc 
-  - Phantom reference: weakest reference 
-- Objects which has to run `finalize()` method will be added to the `F-Queue` 
-  - JVM will start a thread to run `finalize()` method on the objects in `F-Queue` asynchronously 
-  - `finalize()` will only be called once for each object 
-  - it's recommended to not use the `finalize()` method 
-- Garbage collection in method area 
-  - it's not mandatory, and not very cost-effective
-  - gc targets: unused constants and classes 
+### What is dead object?
 
-### Garbage Collection Algorithm 
+- Reference counting? No, it's not used in Java
+    - What happen when object A and object B references each other?(circular reference) => can't remove both
+      objects
+    - Instead, Java uses "reachability analysis" algorithm
+- Reachability Analysis Algorithm
+    - Everything starts from GC root objects
+    - If objects can not be reached from GC root(reference chain doesn't exist), the objects can be considered
+      dead
+- GC roots in Java
+    - Objects referenced by JVM stack e.g. arguments, local variables etc
+    - Statically referenced objects by classes in method read
+    - ...
+- Types of references in Java
+    - Strong reference: never garbage collected
+    - Soft reference: if memory overflow might occur, the gc collects soft referenced objects
+    - Weak reference: removed on next gc
+    - Phantom reference: weakest reference
+- Objects which has to run `finalize()` method will be added to the `F-Queue`
+    - JVM will start a thread to run `finalize()` method on the objects in `F-Queue` asynchronously
+    - `finalize()` will only be called once for each object
+    - it's recommended to not use the `finalize()` method
+- Garbage collection in method area
+    - it's not mandatory, and not very cost-effective
+    - gc targets: unused constants and classes
 
+### Garbage Collection Algorithms
 
+- Generational based collection theory
+    - 2 premises + 1 additional premise
+        - Most of the objects die fast
+        - Long survived objects tend to live longer
+        - intergenerational reference hypothesis: number of intergenerational references are much less than
+          intragenerational references
+- Related terms
+    - minor GC, major G, full GC
+        - minor GC: only the young generation
+        - major GC: only the old generation
+        - mixed GC: young + old generation
+        - full GC: java heap + method area
+    - mark-sweep, mark-copy, mark-compact algorithms
+    - young and old generations
+- Algorithms
+    - Mark and Sweep
+        - How it works
+            1. Marks the objects to be deleted(or should survive)
+            2. Sweep the garbage objects
+        - Cons
+            - When there are too many objects in heap, it takes too much time. Execution time varies depending
+              on the usage of the heap
+            - Memory fragmentation after the sweep.
+    - Mark and Copy
+        - Introduced to overcome the cons(not efficient when the number of garbage increases) of Mark and Sweep
+          algorithm
+        - How it works
+            - Divide the memory into 2 parts
+            - Copy the survived objects into another part of the memory
+                - can remove memory fragmentation
+                - but... if there are too many survived objects, the cost of copying can increase
+        - Most of the JVM use this algorithm
+        - How memory is divided in real world JVMs?(Appel style collection)
+            - Young generation is divided into eden + 2 survivor spaces
+            - Only use the eden space + 1 survivor space when allocating object into heap
+                - After the GC, survived objects are moved into another survivor space
+            - HotSpot VM's default is eden(80%), s1(10%), s2(10%)
+            - But what if survived object's size is bigger than single survivor space?
+                - moved to another region in memory, most of which are the old generation
+        - Mark and Compact algorithm
+            - Appropriate for long lived objects
+            - Similar to mark and sweep, but mark and compact reallocates all the survived object sequentially
+              in memory
+            - GC execution time will increase, but it can improve the allocation and object access efficiency
+
+### HotSpot Implementation
+
+- Root node enumeration
+    - Every garbage collectors must stop during the root node enumeration(stop the world)
+    - HotSpot uses `OopMap` to efficiently enumerate the GC root nodes
+        - doesn't create `OopMap` for every instruction, rather for safe points only
+            - garbage collectors doesn't stop the program until it reaches the safe point
+    - How does garbage collectors stop the threads?
+        - Preemptive suspension
+            - Interrupt running threads until they reach the safe point
+            - Not much JVMs use this approach
+        - Voluntary suspension
+            - Use a flag bit
+            - When the flag bit is set, the thread stops at the nearest safe point
+    - Safe region
+        - Is using safe point enough? => NO
+            - What if there are blocked or waiting threads. What happen when they wake up?
+        - A safe region is a code block where the reference doesn't change, so we can run garbage collection
+          without worries
+        - Garbage collector doesn't have to wait for threads that are running in the safe region.
+- Remembered set and Card table
+    - Remembered set is a data structure used to keep track of references from objects in one memory region to
+      objects in another
+        - usually from old generation to young generation
+    - The primary purpose of the remembered set is to track intergenerational references. By doing this, the
+      garbage collector can avoid scanning the entire old generation when performing a minor garbage collection
+      on the young generation
+    - When an object in the old generation references an object in the young generation, that reference is
+      recorded in the remembered set
+    - During a minor GC, the garbage collector uses the remembered set to identify only those old generation
+      objects with references to young generation objects
+    - Card tables
+        - remembered set is often implemented using a card table
+            - a table that divides memory into small fixed size cards
+        - when a reference crosses generational boundaries, the corresponding card is marked, allowing the
+          collector to identify and scan only marked cards rather than the whole memory
+- Write Barrier
+    - A mechanism in GC used to intercept changes to object references
+        - A small, efficient code snippet that executes whenever an object reference is updated(like an AOP)
+    - Whenever an object reference is updated(especially when an old-generation object starts referencing a
+      young generation object), the write barrier activates it. It marks the corresponding card in the card
+      table, indicating a potential intergenerational reference.
+- Tri-color marking
+    - White
+        - Not reachable objects
+    - Gray
+        - Objects that have been discovered as reachable but whose references have not been fully processed yet.
+          Still needs to be scanned to mark other objects they reference
+    - Black
+        - Nodes that have been marked  as reachable and whose references have been fully processed.
+        - The object marked as black will not be revisited or reprocessed in this collection cycle 
+
+### Classic Garbage Collector 
