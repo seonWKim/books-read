@@ -1,5 +1,3 @@
-# Youtube videos related to JVM
-
 ## [JVM Anatomy 101](https://www.youtube.com/watch?v=BeMi8K0AFAc&t=3048s)
 
 ![jvm_anatomy.png](images/jvm_anatomy.png)
