@@ -598,13 +598,27 @@ Hotspot divides an object into 3 parts
             - Not urgent because ZGC has self healing mechanism
             - This phase can be merged with the next concurrent marking phase
 - Generational ZGC
-    - Weak generational hypothesis still works on ZGC 
+    - Weak generational hypothesis still works on ZGC
+      - the reason why ZGC didn't include weak generational hypothesis in the first place is because of its implementation complexity
     - How it handles big objects 
       - allocate in young generation region 
       - when it survives longer, the region itself becomes old 
 
-### How to select Garbage Collector 
+### How to select the right Garbage Collector 
 
+- Epsilon Garbage Collector 
+  - Doesn't perform garbage collection 
+  - Useful for running performance test or stress test 
+- Standards for choosing GC 
+  - Is throughput important or latency important 
+  - Hardware spec 
+  - Which JDK provider are you going to use? 
+- If you are using Oracle JDK or OpenJDK
+  - If the application handles data which is below 100MB -> serial collector 
+  - If the application runs on single processor and latency isn't important -> serial collector  
+  - If the application throughput is the utmost important + latency is not that importance -> JVM's default collector or parallel collector 
+  - Latency is important -> G1 
+  - Latency is super important -> (Generational) ZGC 
 
 # Related Links
 
