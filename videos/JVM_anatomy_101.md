@@ -1,13 +1,13 @@
 ## [JVM Anatomy 101](https://www.youtube.com/watch?v=BeMi8K0AFAc&t=3048s)
 
-![jvm_anatomy.png](images/jvm_anatomy.png)
+![jvm_anatomy.png](../books/understanding-the-java-virtual-machine/images/jvm_anatomy.png)
 
 ### Java class file and bytecode
 
-![java_class_file.png](images/java_class_file.png)
+![java_class_file.png](../books/understanding-the-java-virtual-machine/images/java_class_file.png)
 
 Java bytecode
-![java_bytecode.png](images/java_bytecode.png)
+![java_bytecode.png](../books/understanding-the-java-virtual-machine/images/java_bytecode.png)
 
 - Contains
     - Instruction array
@@ -67,11 +67,11 @@ Java Runtime
 
 ### Execution engine: interpreters, JIT, AOT
 
-![interpreter.png](images/interpreter.png)
+![interpreter.png](../books/understanding-the-java-virtual-machine/images/interpreter.png)
 
 - This kind of interpreters are very slow
 
-![template_interpreters.png](images/template_interpreters.png)
+![template_interpreters.png](../books/understanding-the-java-virtual-machine/images/template_interpreters.png)
 
 - But still, java bytecode runs slowly
 - Converting bytecode into native code will run faster
@@ -126,9 +126,9 @@ Java Runtime
     - has detailed information about its stack(stack trace)
     - expensive thread creation -> virtual thread(managed by the JVM itself)
 
-![exception_handling.png](images/exception_handling.png)
+![exception_handling.png](../books/understanding-the-java-virtual-machine/images/exception_handling.png)
 
-![threads_and_java_memory_model.png](images/threads_and_java_memory_model.png)
+![threads_and_java_memory_model.png](../books/understanding-the-java-virtual-machine/images/threads_and_java_memory_model.png)
 
 - compilers may optimize the above code
     - the order of execution might be reordered
