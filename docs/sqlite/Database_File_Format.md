@@ -130,7 +130,52 @@ A database file larger than 1073741824 contains exactly one lock-byte page
 
 - lock-byte page is set aside for use by the OS specific VFS implementation in implementing the db file locking
   primitives
-  - lock-byte page arose from the need to support Win95 which was predominant OS 
-- SQLite doesn't use this page 
+    - lock-byte page arose from the need to support Win95 which was predominant OS
+- SQLite doesn't use this page
 
-## 
+## The Freelist
+
+Unused pages are stored on the freelist and are reused when additional pages are required.
+
+Freelist is organized as a linked list of freelist trunk pages with each trunk page containing page numbers for
+zero or more freelist leaf pages
+
+- the first integer on a freelist trunk page is the page number of the next freelist trunk page or zero if this
+  is the last freelist trunk page
+- the second integer on a freelist trunk page is the number of leaf page pointers to follow
+
+The number of freelist pages is stored as a 4-byte big-edian integer in the database header at an offset of 36
+from the beginning of the file.
+The db header also stores the page number of the first freelist trunk page as a 4 byte big edian integer at an
+offset of 32 from the beginning of the file.
+
+## B-tree Pages
+
+- Two variants of b-trees used by SQLite
+    - Table b-trees: use a 64-bit signed integer key and store all data in the leaves
+    - Index b-trees: use arbitrary keys and store no data at all
+- B-tree page
+    - Interior
+        - usually has more than 1 keys
+            - if page 1(with db header) is the interior page, then the number of keys can be 1
+        - large keys are split up into overflow pages so that no single key uses more than one fourth of the
+          available storage space on the page and hence every internal page is able to store at least 4 keys
+            - this only happens in index b-trees(table b-trees use integer keys)
+            - when the size of payload for a cell exceeds a certain threshold, then only the first few bytes of
+              the payload are stored on the b-tree page and the balance is stored in a linked list of content
+              overflow pages
+    - Leaf: keys + associated data(for table b-trees only)
+- Within an interior b-tree page, each key and the pointer to its immediate left are combined into a structure
+  called a
+  `cell`
+    - the rightmost pointer is held separately
+    - a leaf b-tree page has no pointers, but still uses the cell structure
+- root page
+    - page without parent
+    - complete b-tree is identifiable by using root page number
+- B-tree page structure
+  - 100 byte database file header(only in page 1)
+  - 8 or 12 byte b-tre page header 
+  - Unallocated space
+  - Cell content area
+  - Reserved region: for extensions 
