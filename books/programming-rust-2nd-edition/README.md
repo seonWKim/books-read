@@ -222,3 +222,50 @@ impl Float for f64 {
 ```
 
 - associated const also exists 
+
+# Operator Overloading 
+
+- You can make your own types support arithmetic and other operators by implementing few built-in traits -> operator overlading 
+
+## `PartialEq`
+
+- What is meaning of equal 
+  - (1) if `x == y` then `y == x` 
+  - (2) if `x == y` && `y == z` then `x == z` 
+  - (3) `x == x` should always be true 
+- In rust, `0.0 / 0.0 != 0.0 / 0.0`
+  - `0.0 / 0.0` -> NaN -> the standard requires the following rules to be true: 
+```rust 
+assert!(f64::is_nan(0.0 / 0.0));
+assert_eq!(0.0 / 0.0 == 0.0 / 0.0, false);
+assert_eq!(0.0 / 0.0 != 0.0 / 0.0, true);  
+
+/// any ordered comparison with a NaN value must return false 
+assert_eq!(0.0 / 0.0 < 0.0 / 0.0, false);
+assert_eq!(0.0 / 0.0 > 0.0 / 0.0, false);
+assert_eq!(0.0 / 0.0 <= 0.0 / 0.0, false);
+assert_eq!(0.0 / 0.0 >= 0.0 / 0.0, false);
+```
+
+- Because rust doesn't meet the 3rd rule, the trait is called `PartialEq`
+- There is also `Eq` trait 
+
+## `PartialOrd`
+
+- ordered compatison of `<`, `>`, `<=`, `>=` 
+
+```rust 
+trait PartialOrd<Rhs = Self>: PartialEq<Rhs>
+where
+    Rhs: ?Sized,
+{
+    fn partial_cmp(&self, other: &Rhs) -> Option<Ordering>;
+
+    fn lt(&self, other: &Rhs) -> bool { ... }
+    fn le(&self, other: &Rhs) -> bool { ... }
+    fn gt(&self, other: &Rhs) -> bool { ... }
+    fn ge(&self, other: &Rhs) -> bool { ... }
+}
+```
+
+- if `partial_cmp` returns `None` 
