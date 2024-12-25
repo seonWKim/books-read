@@ -1,3 +1,7 @@
+# Ownership and Moves 
+
+
+
 # Traits and Generics
 
 - Rust takes a fresh approach inspired by Haskell's typeclasses
@@ -192,17 +196,18 @@ where
 }
 ```
 
-or 
+or
 
 ```rust 
 fn dump<I>(iter: I)
-    where I: Iterator<Item=String>
+where
+    I: Iterator<Item=String>
 {
     ...
 }
 ```
 
-- We can also add bounds to associated types 
+- We can also add bounds to associated types
 
 ```rust 
 trait Float {
@@ -221,24 +226,26 @@ impl Float for f64 {
 }
 ```
 
-- associated const also exists 
+- associated const also exists
 
-# Operator Overloading 
+# Operator Overloading
 
-- You can make your own types support arithmetic and other operators by implementing few built-in traits -> operator overlading 
+- You can make your own types support arithmetic and other operators by implementing few built-in traits ->
+  operator overlading
 
 ## `PartialEq`
 
-- What is meaning of equal 
-  - (1) if `x == y` then `y == x` 
-  - (2) if `x == y` && `y == z` then `x == z` 
-  - (3) `x == x` should always be true 
+- What is meaning of equal
+    - (1) if `x == y` then `y == x`
+    - (2) if `x == y` && `y == z` then `x == z`
+    - (3) `x == x` should always be true
 - In rust, `0.0 / 0.0 != 0.0 / 0.0`
-  - `0.0 / 0.0` -> NaN -> the standard requires the following rules to be true: 
+    - `0.0 / 0.0` -> NaN -> the standard requires the following rules to be true:
+
 ```rust 
 assert!(f64::is_nan(0.0 / 0.0));
 assert_eq!(0.0 / 0.0 == 0.0 / 0.0, false);
-assert_eq!(0.0 / 0.0 != 0.0 / 0.0, true);  
+assert_eq!(0.0 / 0.0 != 0.0 / 0.0, true);
 
 /// any ordered comparison with a NaN value must return false 
 assert_eq!(0.0 / 0.0 < 0.0 / 0.0, false);
@@ -248,11 +255,11 @@ assert_eq!(0.0 / 0.0 >= 0.0 / 0.0, false);
 ```
 
 - Because rust doesn't meet the 3rd rule, the trait is called `PartialEq`
-- There is also `Eq` trait 
+- There is also `Eq` trait
 
 ## `PartialOrd`
 
-- ordered compatison of `<`, `>`, `<=`, `>=` 
+- ordered compatison of `<`, `>`, `<=`, `>=`
 
 ```rust 
 trait PartialOrd<Rhs = Self>: PartialEq<Rhs>
@@ -268,4 +275,269 @@ where
 }
 ```
 
-- if `partial_cmp` returns `None` 
+- if `partial_cmp` returns `None`
+
+# Utility Traits
+
+## Commonly used traits
+
+- Language extension traits
+    - `Drop`, `Deref`, `DerefMut`, `From`, `Into`
+    - standard lib traits that serve as Rust extension language
+- Marker traits
+    - `Sized`, `Copy`
+    - mostly used to bound generic type variables to express constraints
+- Public vocab traits
+    - don't have any magical compiler integration; but they serve the important goal of setting down
+      conventional solutions for common problems
+    - `Default`, `AsRef`, `AsMut`, `Borrow`, `BorrowMut`, `TryFrom`, `TryInto`, `ToOwned`, `Clone`
+
+# Closures
+
+Example
+
+```rust
+fn sort_cities(cities: &mut Vec<City>) {
+    cities.sort_by_key(|city| -city.population);
+} 
+```
+
+## Capturing Variables
+
+- In garbage collected languages, variables captured by closures are usually stored in heap and garbage
+  collected by the GC
+- But rust doesn't have garbage collector... then how ?
+
+### Closures that borrow
+
+```rust 
+/// Sort by any of several different statistics.
+fn sort_by_statistic(cities: &mut Vec<City>, stat: Statistic) {
+    cities.sort_by_key(|city| -city.get_statistic(stat));
+}
+```
+
+- when rust creates the closure, it automatically borrows a reference to `stat`.
+    - since the closure contains a reference to `stat`, Rust won't let it outlive `stat`
+- Rust ensures by using lifetimes instead of garbage collection
+
+### Closures that steal
+
+```rust 
+use std::thread;
+
+fn start_sorting_thread(mut cities: Vec<City>, stat: Statistic) -> thread::JoinHandle<Vec<City>> {
+    let key_fn = |city: &City| -> i64 { -city.get_statistic(stat) };
+
+    thread::spawn(|| {
+        cities.sort_by_key(key_fn);
+        cities
+    })
+}
+```
+
+- Rust can't guarantee that the reference is used safely, therefore rejects the program
+
+```shell 
+error: closure may outlive the current function, but it borrows `stat`,
+       which is owned by the current function
+   |
+33 | let key_fn = |city: &City| -> i64 { -city.get_statistic(stat) };
+   |              ^^^^^^^^^^^^^^^^^^^^                       ^^^^
+   |              |                                      `stat` is borrowed here
+   |              may outlive borrowed value `stat`
+```
+
+- The solution is to tell Rust to `move` the `cities` and `stat` into the closures instead of borrowing
+  references to them
+
+```rust 
+fn start_sorting_thread(mut cities: Vec<City>, stat: Statistic)
+                        -> thread::JoinHandle<Vec<City>>
+{
+    // takes ownership of the stat 
+    let key_fn = move |city: &City| -> i64 { -city.get_statistic(stat) };
+
+    // take ownership of the cities and key_fn 
+    thread::spawn(move || {
+        cities.sort_by_key(key_fn);
+        cities
+    })
+}
+```
+
+- closures follow the same rules about moves and borrowing
+
+```rust
+fn count_selected_cities<F>(cities: &Vec<City>, test_fn: F) -> usize
+where
+    F: Fn(&City) -> bool
+{
+    let mut count = 0;
+    for city in cities {
+        if test_fn(city) {
+            count += 1;
+        }
+    }
+    count
+}
+```
+
+- in order to pass closures as arguments, you have to use `Fn`
+
+```text
+fn(&City) -> bool    // fn type (functions only)
+Fn(&City) -> bool    // Fn trait (both functions and closures)
+```
+
+- every closure you write has its own type, because a closure may contain data: values either borrowed or stolen
+  from enclosing scopes
+- no two closures have exactly same type, but every closure implements an `Fn` trait
+
+## Closure Performance
+
+- In most languages, closures are allocated in the heap, dynamically dispatched and garbage collected
+    - worse, closures tend to rule out inlining, a key technique compilers use to eliminate function call
+      overhead
+- Rust closures
+    - not garbage collected
+    - aren't allocated on the heap unless you use `Box`, `Vec` or other container
+    - because Rust compiler knows the type of the closure you're calling, it can inline the code for that
+      particular closure
+
+### Layout of closures
+
+![img.png](closure_layout.png)
+
+- (a) borrows(references)
+- (b) `move`s into the closure
+- doesn't use any variables from its environment
+
+## Closures and Safety
+
+- What happens when a closure drops or modifies a captured value ?
+
+### Closures that kill
+
+```rust 
+let my_str = "hello".to_string();
+let f = | | drop(my_str);
+
+f();  // ok
+f();  // error: use of moved value
+```
+
+- What if we call `f()` twice?
+    - Rust knows that this closure can't be called twice
+    - It's unusual that closures can be called only once, but we know how to respect rust's safety guarantees
+
+```rust 
+fn call_twice<F>(closure: F) where
+    F: Fn()
+{
+    closure();
+    closure();
+}
+
+let my_str = "hello".to_string();
+let f = | | drop(my_str);
+call_twice(f);
+```
+
+```shell 
+error: expected a closure that implements the `Fn` trait, but
+       this closure only implements `FnOnce`
+    |
+  8 | let f = || drop(my_str);
+    |         ^^^^^^^^------^
+    |         |       |
+    |         |       closure is `FnOnce` because it moves the variable `my_str`
+    |         |       out of its environment
+    |         this closure implements `FnOnce`, not `Fn`
+  9 | call_twice(f);
+    | ---------- the requirement to implement `Fn` derives from here
+```
+
+- Closures that drop values like `f`, are not allowed to have `Fn`
+    - they implement a less powerful trait, `FnOnce`
+
+### `Fn`, `FnOnce`, `FnMut`
+
+```rust 
+// Pseudocode for `Fn`, `FnMut`, and `FnOnce` traits.
+trait Fn() -> R {
+fn call(&self) -> R;
+}
+
+trait FnMut() -> R {
+fn call_mut(&mut self) -> R;
+}
+
+trait FnOnce() -> R {
+fn call_once(self) -> R;
+}
+```
+
+![img.png](function_types.png)
+
+- function trait types
+    - `Fn`: the family of closures and functions that you can call multiple times without restriction.
+    - `FnMut`: the family of closures that can be called multiple times if the closure itself is declared `mut`
+    - `FnOnce`: the family of closures that can be called once, if the caller owns the closure
+
+
+- closure that writes
+- any closure that requires `mut` access to a value, but doesn't drop any values, is an `FnMut` closure
+
+### Copy and Clone for Closures
+
+- Because rust automatically figures out which closures can be called only once, it can figure out which
+  closures can implement `Copy` and `Clone, and which cannot
+- Closures are represented as structs that contain either the values(for `move` closures) or references to the
+  values(for non-`move` closures)
+  - A non-`move` closure that doesn't mutate variables hold only shared references, which are both `Clone` and `Copy` 
+  - A non-`move` closure that does mutate values has mutable references within its internal representation. Mutable references are neither `Clone` nor `Copy` 
+  - A `move` closure, the rules are even simpler. If everything a `move` closure captures is `Copy`, it's `Copy`. If everything it captures is `Clone`, it's `Clone`
+```rust 
+let y = 10;
+let add_y = |x| x + y;
+let copy_of_add_y = add_y;                // This closure is `Copy`, so...
+assert_eq!(add_y(copy_of_add_y(22)), 42); // ... we can call both.
+```
+
+```rust 
+let mut x = 0;
+let mut add_to_x = |n| { x += n; x };
+
+let copy_of_add_to_x = add_to_x;         // this moves, rather than copies
+assert_eq!(add_to_x(copy_of_add_to_x(1)), 2); // error: use of moved value
+```
+
+```rust 
+let mut greeting = String::from("Hello, ");
+let greet = move |name| {
+    greeting.push_str(name);
+    println!("{}", greeting);
+};
+greet.clone()("Alfred");
+greet.clone()("Bruce");
+```
+
+### Examples 
+
+```rust 
+App::new()
+    .route("/", web::get().to(|| {
+        HttpResponse::Ok()
+            .content_type("text/html")
+            .body("<title>GCD Calculator</title>...")
+    }))
+    .route("/gcd", web::post().to(|form: web::Form<GcdParameters>| {
+        HttpResponse::Ok()
+            .content_type("text/html")
+            .body(format!("The GCD of {} and {} is {}.",
+                          form.n, form.m, gcd(form.n, form.m)))
+    }))
+```
+
+-> this is because `actix-web` has written to accept any thread-safe `Fn` as an argument 
