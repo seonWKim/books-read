@@ -69,16 +69,16 @@ public class LockSupport {
   - Freeze: suspend a continuation and unmount it by copying frames from OS thread stack to continuation object 
   - Thaw: mount a suspended continuation by copying frames from continuation object to OS thread stack 
 
-![unmount_1.png](images/unmount_1.png)
+![unmount_1.png](../jvm_anatomy_101/images/unmount_1.png)
 - While continuation is running, frames are added to the thread 
 
-![unmount_2.png](images/unmount_2.png)
+![unmount_2.png](../jvm_anatomy_101/images/unmount_2.png)
 - when `yield` is called, put the frames into Continuation
 
-![mount_1.png](images/mount_1.png)
+![mount_1.png](../jvm_anatomy_101/images/mount_1.png)
 - when `continuation.run()` is called, move all the frames back to thread's stack 
 
-![mount_2.png](images/mount_2.png)
+![mount_2.png](../jvm_anatomy_101/images/mount_2.png)
 
 - The pros/cons of this approach is(copying)... 
   - pros 
@@ -91,11 +91,11 @@ public class LockSupport {
 
 ### Lazy Copy 
 
-![lazy_copy_1.png](images/lazy_copy_1.png)
+![lazy_copy_1.png](../jvm_anatomy_101/images/lazy_copy_1.png)
 
-![lazy_copy_2.png](images/lazy_copy_2.png)
+![lazy_copy_2.png](../jvm_anatomy_101/images/lazy_copy_2.png)
 
-![lazy_copy_3.png](images/lazy_copy_3.png)
+![lazy_copy_3.png](../jvm_anatomy_101/images/lazy_copy_3.png)
 - we don't copy everything back to the thread stack 
 - use return barrier 
 

@@ -32,7 +32,7 @@
 - used to access method arguments 
 
 ### integer spin 
-![integer_spin_bytecode.png](images/integer_spin_bytecode.png)
+![integer_spin_bytecode.png](../jvm_anatomy_101/images/integer_spin_bytecode.png)
 - `stack=2, locals=2, args_size=1`
   - `stack=2`: 2 element high stack(0 ~ 2, never go beyond 3)
   - `locals=2`: number of local variable slots 
@@ -46,10 +46,10 @@
 - `goto 2`: goto bytecode line number 2 
 
 ### double spin 
-![double_spin_bytecode.png](images/double_spin_bytecode.png)
+![double_spin_bytecode.png](../jvm_anatomy_101/images/double_spin_bytecode.png)
 - long and double require 2 slots for computation 
 - it doesn't care whether you run java on 32 bit or 64 bit machine
-![data_categories.png](images/data_categories.png)
+![data_categories.png](../jvm_anatomy_101/images/data_categories.png)
 - `ldc2_w`: load constant to w(from constant pool)
 ![constant_pool_loads.png](constant_pool_loads.png)
 - category 1: everything which isn't double or float 

@@ -4,4 +4,4 @@
 
 # Youtube videos I've found interesting 
 
-[JVM Anatomy 101](videos/JVM_anatomy_101.md)
+[JVM Anatomy 101](videos/jvm_anatomy_101/JVM_anatomy_101.md)
