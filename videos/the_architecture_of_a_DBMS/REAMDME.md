@@ -36,3 +36,5 @@ Why even worry about Database Architecture
 
 ## Architecture as Layers 
 ![img.png](architecture_as_layers.png)
+
+- 
